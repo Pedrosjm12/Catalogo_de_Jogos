@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Observação: o conector SQLite do Prisma não suporta `enum` nativo,
+// por isso o conjunto de valores válidos de `status` é reforçado na
+// borda da API (zod, em src/schemas/game.schema.ts) em vez do schema do banco.
+model Game {
+  id          String    @id @default(uuid())
+  title       String
+  platform    String
+  developer   String
+  status      String
+  favorite    Boolean   @default(false)
+  rating      Float?
+  releaseDate DateTime?
+  coverUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("games")
+}
