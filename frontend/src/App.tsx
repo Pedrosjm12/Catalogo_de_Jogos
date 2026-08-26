@@ -15,35 +15,184 @@ type Game = {
   coverUrl?: string | null;
 };
 
+type Suggestion = {
+  id: number;
+  name: string;
+  image: string | null;
+  rating: number | null;
+  released: string | null;
+  developer: string;
+  platform: string;
+};
+
+type Tab = "biblioteca" | "desejos";
+
 const API_URL = "http://localhost:3333/api";
 
+const formatReleaseDate = (releaseDate?: string | null) =>
+  releaseDate
+    ? new Date(releaseDate).toLocaleDateString("pt-BR")
+    : "Não informada";
+
+function GameCard({
+  game,
+  featured = false,
+  selected,
+  onClick,
+}: {
+  game: Game;
+  featured?: boolean;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <article
+      className={`game-card${featured ? " featured" : ""}${
+        selected ? " is-selected" : ""
+      }`}
+      onClick={onClick}
+    >
+      <div className="game-cover-wrap">
+        <img
+          src={
+            game.coverUrl ??
+            "https://placehold.co/300x180/0f172a/94a3b8?text=Sem+capa"
+          }
+          alt={game.title}
+          className="game-cover"
+        />
+      </div>
+      <div className="game-card-info">
+        <div className="card-badges">
+          {game.favorite && <span className="badge">♥ Favorito</span>}
+          <span className="score">★ {game.rating ?? "—"}</span>
+        </div>
+        <h3 title={game.title}>{game.title}</h3>
+        <p className="platform">▣ &nbsp;{game.platform}</p>
+      </div>
+    </article>
+  );
+}
+
+function GameDetailsPanel({
+  game,
+  onEdit,
+  onDelete,
+}: {
+  game?: Game;
+  onEdit: (game: Game) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <section className="panel game-details-panel">
+      <div className="section-title">
+        <h2>Detalhes do jogo</h2>
+      </div>
+      {game ? (
+        <div className="selected-game-details">
+          <article className="selected-game-card">
+            <div className="selected-game-cover-wrap">
+              <img
+                src={
+                  game.coverUrl ??
+                  "https://placehold.co/520x360/0f172a/94a3b8?text=Sem+capa"
+                }
+                alt={game.title}
+                className="game-cover"
+              />
+            </div>
+            <div className="selected-game-card-info">
+              <div className="card-badges">
+                {game.favorite && <span className="badge">♥ Favorito</span>}
+                <span className="score">★ {game.rating ?? "—"}</span>
+              </div>
+              <h3>{game.title}</h3>
+              <p className="platform">▣ &nbsp;{game.platform}</p>
+            </div>
+          </article>
+
+          <dl className="details-list">
+            <div>
+              <dt>Título do jogo</dt>
+              <dd>{game.title}</dd>
+            </div>
+            <div>
+              <dt>Plataforma</dt>
+              <dd>{game.platform}</dd>
+            </div>
+            <div>
+              <dt>Desenvolvedora</dt>
+              <dd>{game.developer}</dd>
+            </div>
+            <div>
+              <dt>Status de progresso</dt>
+              <dd>{game.status}</dd>
+            </div>
+            <div>
+              <dt>Favorito</dt>
+              <dd>{game.favorite ? "Sim" : "Não"}</dd>
+            </div>
+            <div>
+              <dt>Nota (0-10)</dt>
+              <dd>{game.rating ?? "Não informada"}</dd>
+            </div>
+            <div>
+              <dt>Data de Lançamento</dt>
+              <dd>{formatReleaseDate(game.releaseDate)}</dd>
+            </div>
+          </dl>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="warning"
+              onClick={() => onEdit(game)}
+            >
+              Editar selecionado
+            </button>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => onDelete(game.id)}
+            >
+              Excluir selecionado
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="empty-state">
+          Selecione um jogo para ver os detalhes.
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState<Tab>("biblioteca");
   const [games, setGames] = useState<Game[]>([]);
   const [featured, setFeatured] = useState<Game[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"TODOS" | GameStatus>(
-    "TODOS",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "TODOS" | "JOGANDO" | "ZERADO"
+  >("TODOS");
   const [favoriteFilter, setFavoriteFilter] = useState<
     "TODOS" | "FAVORITOS" | "NAO_FAVORITOS"
   >("TODOS");
   const [sortBy, setSortBy] = useState<"recent" | "older" | "rating" | "title">(
     "recent",
   );
+  const [wishlistSearchTerm, setWishlistSearchTerm] = useState("");
+  const [wishlistFavoriteFilter, setWishlistFavoriteFilter] = useState<
+    "TODOS" | "FAVORITOS" | "NAO_FAVORITOS"
+  >("TODOS");
+  const [wishlistSortBy, setWishlistSortBy] = useState<
+    "recent" | "older" | "title"
+  >("recent");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<
-    Array<{
-      id: number;
-      name: string;
-      image: string | null;
-      rating: number | null;
-      released: string | null;
-      developer: string;
-      platform: string;
-    }>
-  >([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [form, setForm] = useState({
     title: "",
     platform: "",
@@ -169,13 +318,7 @@ export default function App() {
     setSelectedGameId(game.id);
   };
 
-  const handleSelectSuggestion = (suggestion: {
-    name: string;
-    image: string | null;
-    released: string | null;
-    developer: string;
-    platform: string;
-  }) => {
+  const handleSelectSuggestion = (suggestion: Suggestion) => {
     setForm((current) => ({
       ...current,
       title: suggestion.name,
@@ -197,7 +340,10 @@ export default function App() {
     }));
   };
 
-  const filteredGames = games.filter((game) => {
+  const libraryGames = games.filter((game) => game.status !== "QUERO_JOGAR");
+  const wishlistGames = games.filter((game) => game.status === "QUERO_JOGAR");
+
+  const filteredLibraryGames = libraryGames.filter((game) => {
     const matchesSearch =
       game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       game.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,7 +362,7 @@ export default function App() {
     return matchesSearch && matchesStatus && matchesFavorite;
   });
 
-  const sortedGames = [...filteredGames].sort((a, b) => {
+  const sortedLibraryGames = [...filteredLibraryGames].sort((a, b) => {
     if (sortBy === "rating") {
       return (b.rating ?? 0) - (a.rating ?? 0);
     }
@@ -225,25 +371,55 @@ export default function App() {
       return a.title.localeCompare(b.title);
     }
 
+    const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+    const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+
     if (sortBy === "older") {
-      const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
-      const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
       return dateA - dateB;
+    }
+
+    return dateB - dateA;
+  });
+
+  const filteredWishlistGames = wishlistGames.filter((game) => {
+    const matchesSearch =
+      game.title.toLowerCase().includes(wishlistSearchTerm.toLowerCase()) ||
+      game.platform.toLowerCase().includes(wishlistSearchTerm.toLowerCase()) ||
+      game.developer.toLowerCase().includes(wishlistSearchTerm.toLowerCase());
+
+    const matchesFavorite =
+      wishlistFavoriteFilter === "TODOS"
+        ? true
+        : wishlistFavoriteFilter === "FAVORITOS"
+          ? game.favorite
+          : !game.favorite;
+
+    return matchesSearch && matchesFavorite;
+  });
+
+  const sortedWishlistGames = [...filteredWishlistGames].sort((a, b) => {
+    if (wishlistSortBy === "title") {
+      return a.title.localeCompare(b.title);
     }
 
     const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
     const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+
+    if (wishlistSortBy === "older") {
+      return dateA - dateB;
+    }
+
     return dateB - dateA;
   });
 
-  const totalFavorites = games.filter((game) => game.favorite).length;
-  const totalZerados = games.filter((game) => game.status === "ZERADO").length;
+  const totalFavorites = libraryGames.filter((game) => game.favorite).length;
+  const totalZerados = libraryGames.filter(
+    (game) => game.status === "ZERADO",
+  ).length;
+  const totalJogando = libraryGames.filter(
+    (game) => game.status === "JOGANDO",
+  ).length;
   const selectedGame = games.find((game) => game.id === selectedGameId);
-
-  const formatReleaseDate = (releaseDate?: string | null) =>
-    releaseDate
-      ? new Date(releaseDate).toLocaleDateString("pt-BR")
-      : "Não informada";
 
   return (
     <div className="app-shell">
@@ -255,12 +431,26 @@ export default function App() {
           </strong>
         </div>
         <nav className="main-nav">
-          <a className="active" href="#biblioteca">
+          <a
+            href="#biblioteca"
+            className={activeTab === "biblioteca" ? "active" : ""}
+            onClick={(event) => {
+              event.preventDefault();
+              setActiveTab("biblioteca");
+            }}
+          >
             Biblioteca
           </a>
-          <a href="#descobrir">Descobrir</a>
-          <a href="#estatisticas">Estatísticas</a>
-          <a href="#configuracoes">Configurações</a>
+          <a
+            href="#desejos"
+            className={activeTab === "desejos" ? "active" : ""}
+            onClick={(event) => {
+              event.preventDefault();
+              setActiveTab("desejos");
+            }}
+          >
+            Lista de desejos
+          </a>
         </nav>
         <div className="profile">
           <span>Gamer_Pro</span>
@@ -268,368 +458,344 @@ export default function App() {
         </div>
       </header>
 
-      <section className="hero" id="biblioteca">
-        <div>
-          <p className="eyebrow">Sua coleção</p>
-          <h1>Catálogo de Jogos</h1>
-          <p className="hero-subtitle">
-            Organize, classifique e controle sua jornada gamer pessoal
-          </p>
-        </div>
-      </section>
-
-      <section className="stats-grid">
-        <div className="stat-card">
-          <div>
-            <span>Total de jogos</span>
-            <strong>{games.length}</strong>
-          </div>
-          <b className="stat-icon cyan">▥</b>
-        </div>
-        <div className="stat-card">
-          <div>
-            <span>Favoritos</span>
-            <strong>{totalFavorites}</strong>
-          </div>
-          <b className="stat-icon pink">♡</b>
-        </div>
-        <div className="stat-card">
-          <div>
-            <span>Jogando atualmente</span>
-            <strong>
-              {games.filter((game) => game.status === "JOGANDO").length}
-            </strong>
-          </div>
-          <b className="stat-icon green">▷</b>
-        </div>
-        <div className="stat-card">
-          <div>
-            <span>Zerados</span>
-            <strong>{totalZerados}</strong>
-          </div>
-          <b className="stat-icon purple">♙</b>
-        </div>
-      </section>
-
-      <main className="content">
-        <section className="panel">
-          <h2>
-            <i />
-            {editingId ? "Editar jogo" : "Adicionar novo jogo"}
-          </h2>
-          <form onSubmit={handleSubmit} className="game-form">
-            <div className="title-input-wrap">
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Título"
-                required
-                disabled={Boolean(editingId)}
-              />
-              {!isModalOpen &&
-                !editingId &&
-                suggestions.length > 0 &&
-                form.title.trim().length >= 2 && (
-                  <div className="suggestions-box">
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        className="suggestion-item"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                      >
-                        <img
-                          src={
-                            suggestion.image ??
-                            "https://placehold.co/60x90/0f172a/94a3b8?text=Jogo"
-                          }
-                          alt={suggestion.name}
-                        />
-                        <span>{suggestion.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+      {activeTab === "biblioteca" ? (
+        <>
+          <section className="hero" id="biblioteca">
+            <div>
+              <p className="eyebrow">Sua coleção</p>
+              <h1>Catálogo de Jogos</h1>
+              <p className="hero-subtitle">
+                Organize, classifique e controle sua jornada gamer pessoal
+              </p>
             </div>
-            <input
-              value={form.platform}
-              onChange={(e) => setForm({ ...form, platform: e.target.value })}
-              placeholder="Plataforma"
-              required
-            />
-            <input
-              value={form.developer}
-              onChange={(e) => setForm({ ...form, developer: e.target.value })}
-              placeholder="Desenvolvedora"
-              required
-              disabled={Boolean(editingId)}
-            />
-            <select
-              value={form.status}
-              onChange={(e) => handleStatusChange(e.target.value as GameStatus)}
-            >
-              <option value="JOGANDO">Jogando</option>
-              <option value="ZERADO">Zerado</option>
-              <option value="QUERO_JOGAR">Quero Jogar</option>
-            </select>
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={form.favorite}
-                onChange={(e) =>
-                  setForm({ ...form, favorite: e.target.checked })
-                }
-              />
-              Favorito
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={form.rating}
-              onChange={(e) => setForm({ ...form, rating: e.target.value })}
-              placeholder="Nota (0-10)"
-              disabled={form.status === "QUERO_JOGAR"}
-            />
-            <input
-              type="date"
-              value={form.releaseDate}
-              onChange={(e) =>
-                setForm({ ...form, releaseDate: e.target.value })
-              }
-              disabled={Boolean(editingId)}
-            />
-            <button type="submit">
-              {editingId ? "Salvar alterações" : "Salvar jogo"}
-            </button>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="warning"
-                disabled={!selectedGameId}
-                onClick={() => {
-                  const selectedGame = games.find(
-                    (game) => game.id === selectedGameId,
-                  );
-                  if (selectedGame) handleEdit(selectedGame);
-                }}
-              >
-                Editar selecionado
-              </button>
-              <button
-                type="button"
-                className="danger"
-                disabled={!selectedGameId}
-                onClick={() => {
-                  if (selectedGameId) handleDelete(selectedGameId);
-                }}
-              >
-                Excluir selecionado
-              </button>
+          </section>
+
+          <section className="stats-grid">
+            <div className="stat-card">
+              <div>
+                <span>Total de jogos</span>
+                <strong>{libraryGames.length}</strong>
+              </div>
+              <b className="stat-icon cyan">▥</b>
             </div>
-            {editingId && (
-              <button type="button" className="secondary" onClick={resetForm}>
-                Cancelar
-              </button>
-            )}
-          </form>
-        </section>
+            <div className="stat-card">
+              <div>
+                <span>Favoritos</span>
+                <strong>{totalFavorites}</strong>
+              </div>
+              <b className="stat-icon pink">♡</b>
+            </div>
+            <div className="stat-card">
+              <div>
+                <span>Jogando atualmente</span>
+                <strong>{totalJogando}</strong>
+              </div>
+              <b className="stat-icon green">▷</b>
+            </div>
+            <div className="stat-card">
+              <div>
+                <span>Zerados</span>
+                <strong>{totalZerados}</strong>
+              </div>
+              <b className="stat-icon purple">♙</b>
+            </div>
+          </section>
 
-        <section className="panel highlights-panel">
-          <div className="section-title">
-            <h2>Destaques</h2>
-            <span>Em alta</span>
-          </div>
-          <div className="card-grid">
-            {featured.map((game) => (
-              <article
-                key={game.id}
-                className={`game-card featured${
-                  selectedGameId === game.id ? " is-selected" : ""
-                }`}
-                onClick={() => handleCardClick(game)}
-              >
-                <div className="game-cover-wrap">
-                  <img
-                    src={
-                      game.coverUrl ??
-                      "https://placehold.co/300x180/0f172a/94a3b8?text=Sem+capa"
+          <main className="content">
+            <section className="panel">
+              <h2>
+                <i />
+                {editingId ? "Editar jogo" : "Adicionar novo jogo"}
+              </h2>
+              <form onSubmit={handleSubmit} className="game-form">
+                <div className="title-input-wrap">
+                  <input
+                    value={form.title}
+                    onChange={(e) =>
+                      setForm({ ...form, title: e.target.value })
                     }
-                    alt={game.title}
-                    className="game-cover"
+                    placeholder="Título"
+                    required
+                    disabled={Boolean(editingId)}
                   />
-                </div>
-                <div className="game-card-info">
-                  <div className="card-badges">
-                    {game.favorite && <span className="badge">♥ Favorito</span>}
-                    <span className="score">★ {game.rating ?? "—"}</span>
-                  </div>
-                  <h3 title={game.title}>{game.title}</h3>
-                  <p className="platform">▣ &nbsp;{game.platform}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel game-details-panel">
-          <div className="section-title">
-            <h2>Detalhes do jogo</h2>
-          </div>
-          {selectedGame && (
-            <div className="selected-game-details">
-              <article className="selected-game-card">
-                <div className="selected-game-cover-wrap">
-                  <img
-                    src={
-                      selectedGame.coverUrl ??
-                      "https://placehold.co/520x360/0f172a/94a3b8?text=Sem+capa"
-                    }
-                    alt={selectedGame.title}
-                    className="game-cover"
-                  />
-                </div>
-                <div className="selected-game-card-info">
-                  <div className="card-badges">
-                    {selectedGame.favorite && (
-                      <span className="badge">♥ Favorito</span>
+                  {!isModalOpen &&
+                    !editingId &&
+                    suggestions.length > 0 &&
+                    form.title.trim().length >= 2 && (
+                      <div className="suggestions-box">
+                        {suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.id}
+                            type="button"
+                            className="suggestion-item"
+                            onClick={() => handleSelectSuggestion(suggestion)}
+                          >
+                            <img
+                              src={
+                                suggestion.image ??
+                                "https://placehold.co/60x90/0f172a/94a3b8?text=Jogo"
+                              }
+                              alt={suggestion.name}
+                            />
+                            <span>{suggestion.name}</span>
+                          </button>
+                        ))}
+                      </div>
                     )}
-                    <span className="score">
-                      ★ {selectedGame.rating ?? "—"}
-                    </span>
-                  </div>
-                  <h3>{selectedGame.title}</h3>
-                  <p className="platform">▣ &nbsp;{selectedGame.platform}</p>
                 </div>
-              </article>
-
-              <dl className="details-list">
-                <div>
-                  <dt>Título do jogo</dt>
-                  <dd>{selectedGame.title}</dd>
-                </div>
-                <div>
-                  <dt>Plataforma</dt>
-                  <dd>{selectedGame.platform}</dd>
-                </div>
-                <div>
-                  <dt>Desenvolvedora</dt>
-                  <dd>{selectedGame.developer}</dd>
-                </div>
-                <div>
-                  <dt>Status de progresso</dt>
-                  <dd>{selectedGame.status}</dd>
-                </div>
-                <div>
-                  <dt>Favorito</dt>
-                  <dd>{selectedGame.favorite ? "Sim" : "Não"}</dd>
-                </div>
-                <div>
-                  <dt>Nota (0-10)</dt>
-                  <dd>{selectedGame.rating ?? "Não informada"}</dd>
-                </div>
-                <div>
-                  <dt>Data de Lançamento</dt>
-                  <dd>{formatReleaseDate(selectedGame.releaseDate)}</dd>
-                </div>
-              </dl>
-            </div>
-          )}
-        </section>
-
-        <section className="panel">
-          <div className="toolbar">
-            <h2>Todos os jogos</h2>
-            <div className="filters">
-              <input
-                type="text"
-                placeholder="Buscar por título, plataforma ou desenvolvedora"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as "TODOS" | GameStatus)
-                }
-              >
-                <option value="TODOS">Todos os status</option>
-                <option value="JOGANDO">Jogando</option>
-                <option value="ZERADO">Zerado</option>
-                <option value="QUERO_JOGAR">Quero Jogar</option>
-              </select>
-              <select
-                value={favoriteFilter}
-                onChange={(e) =>
-                  setFavoriteFilter(
-                    e.target.value as "TODOS" | "FAVORITOS" | "NAO_FAVORITOS",
-                  )
-                }
-              >
-                <option value="TODOS">Todos</option>
-                <option value="FAVORITOS">Favoritos</option>
-                <option value="NAO_FAVORITOS">Não favoritos</option>
-              </select>
-              <select
-                value={sortBy}
-                onChange={(e) =>
-                  setSortBy(
-                    e.target.value as "recent" | "older" | "rating" | "title",
-                  )
-                }
-                className="sort-control"
-              >
-                <option value="recent">Mais recente</option>
-                <option value="older">Mais antigo</option>
-                <option value="rating">Melhor nota</option>
-                <option value="title">Título</option>
-              </select>
-            </div>
-          </div>
-
-          {sortedGames.length === 0 ? (
-            <div className="empty-state">
-              Nenhum jogo encontrado com os filtros atuais.
-            </div>
-          ) : (
-            <div className="card-grid">
-              {sortedGames.map((game) => (
-                <article
-                  key={game.id}
-                  className={`game-card${
-                    selectedGameId === game.id ? " is-selected" : ""
-                  }`}
-                  onClick={() => handleCardClick(game)}
+                <input
+                  value={form.platform}
+                  onChange={(e) =>
+                    setForm({ ...form, platform: e.target.value })
+                  }
+                  placeholder="Plataforma"
+                  required
+                />
+                <input
+                  value={form.developer}
+                  onChange={(e) =>
+                    setForm({ ...form, developer: e.target.value })
+                  }
+                  placeholder="Desenvolvedora"
+                  required
+                  disabled={Boolean(editingId)}
+                />
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    handleStatusChange(e.target.value as GameStatus)
+                  }
                 >
-                  <div className="game-cover-wrap">
-                    <img
-                      src={
-                        game.coverUrl ??
-                        "https://placehold.co/300x180/0f172a/94a3b8?text=Sem+capa"
-                      }
-                      alt={game.title}
-                      className="game-cover"
+                  <option value="JOGANDO">Jogando</option>
+                  <option value="ZERADO">Zerado</option>
+                  <option value="QUERO_JOGAR">Quero Jogar</option>
+                </select>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={form.favorite}
+                    onChange={(e) =>
+                      setForm({ ...form, favorite: e.target.checked })
+                    }
+                  />
+                  Favorito
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={form.rating}
+                  onChange={(e) =>
+                    setForm({ ...form, rating: e.target.value })
+                  }
+                  placeholder="Nota (0-10)"
+                  disabled={form.status === "QUERO_JOGAR"}
+                />
+                <input
+                  type="date"
+                  value={form.releaseDate}
+                  onChange={(e) =>
+                    setForm({ ...form, releaseDate: e.target.value })
+                  }
+                  disabled={Boolean(editingId)}
+                />
+                <button type="submit">
+                  {editingId ? "Salvar alterações" : "Salvar jogo"}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={resetForm}
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </form>
+            </section>
+
+            <section className="panel highlights-panel">
+              <div className="section-title">
+                <h2>Destaques</h2>
+                <span>Em alta</span>
+              </div>
+              <div className="card-grid">
+                {featured.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    featured
+                    selected={selectedGameId === game.id}
+                    onClick={() => handleCardClick(game)}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <GameDetailsPanel
+              game={selectedGame}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+
+            <section className="panel">
+              <div className="toolbar">
+                <h2>Todos os jogos</h2>
+                <div className="filters">
+                  <input
+                    type="text"
+                    placeholder="Buscar por título, plataforma ou desenvolvedora"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) =>
+                      setStatusFilter(
+                        e.target.value as "TODOS" | "JOGANDO" | "ZERADO",
+                      )
+                    }
+                  >
+                    <option value="TODOS">Todos os status</option>
+                    <option value="JOGANDO">Jogando</option>
+                    <option value="ZERADO">Zerado</option>
+                  </select>
+                  <select
+                    value={favoriteFilter}
+                    onChange={(e) =>
+                      setFavoriteFilter(
+                        e.target.value as
+                          | "TODOS"
+                          | "FAVORITOS"
+                          | "NAO_FAVORITOS",
+                      )
+                    }
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="FAVORITOS">Favoritos</option>
+                    <option value="NAO_FAVORITOS">Não favoritos</option>
+                  </select>
+                  <select
+                    value={sortBy}
+                    onChange={(e) =>
+                      setSortBy(
+                        e.target.value as
+                          | "recent"
+                          | "older"
+                          | "rating"
+                          | "title",
+                      )
+                    }
+                    className="sort-control"
+                  >
+                    <option value="recent">Mais recente</option>
+                    <option value="older">Mais antigo</option>
+                    <option value="rating">Melhor nota</option>
+                    <option value="title">Título</option>
+                  </select>
+                </div>
+              </div>
+
+              {sortedLibraryGames.length === 0 ? (
+                <div className="empty-state">
+                  Nenhum jogo encontrado com os filtros atuais.
+                </div>
+              ) : (
+                <div className="card-grid">
+                  {sortedLibraryGames.map((game) => (
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      selected={selectedGameId === game.id}
+                      onClick={() => handleCardClick(game)}
                     />
-                  </div>
-                  <div className="game-card-info">
-                    <div className="card-badges">
-                      {game.favorite && (
-                        <span className="badge">♥ Favorito</span>
-                      )}
-                      <span className="score">★ {game.rating ?? "—"}</span>
-                    </div>
-                    <div className="card-header">
-                      <h3 title={game.title}>{game.title}</h3>
-                    </div>
-                    <p className="platform">▣ &nbsp;{game.platform}</p>
-                  </div>
-                </article>
-              ))}
+                  ))}
+                </div>
+              )}
+            </section>
+          </main>
+        </>
+      ) : (
+        <>
+          <section className="hero" id="desejos">
+            <div>
+              <p className="eyebrow">Planejamento</p>
+              <h1>Lista de Desejos</h1>
+              <p className="hero-subtitle">
+                Jogos que você ainda quer jogar
+              </p>
             </div>
-          )}
-        </section>
-      </main>
+          </section>
+
+          <main className="content">
+            <section className="panel">
+              <div className="toolbar">
+                <h2>Quero jogar</h2>
+                <div className="filters">
+                  <input
+                    type="text"
+                    placeholder="Buscar por título, plataforma ou desenvolvedora"
+                    value={wishlistSearchTerm}
+                    onChange={(e) => setWishlistSearchTerm(e.target.value)}
+                  />
+                  <select
+                    value={wishlistFavoriteFilter}
+                    onChange={(e) =>
+                      setWishlistFavoriteFilter(
+                        e.target.value as
+                          | "TODOS"
+                          | "FAVORITOS"
+                          | "NAO_FAVORITOS",
+                      )
+                    }
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="FAVORITOS">Favoritos</option>
+                    <option value="NAO_FAVORITOS">Não favoritos</option>
+                  </select>
+                  <select
+                    value={wishlistSortBy}
+                    onChange={(e) =>
+                      setWishlistSortBy(
+                        e.target.value as "recent" | "older" | "title",
+                      )
+                    }
+                    className="sort-control"
+                  >
+                    <option value="recent">Mais recente</option>
+                    <option value="older">Mais antigo</option>
+                    <option value="title">Título</option>
+                  </select>
+                </div>
+              </div>
+
+              {sortedWishlistGames.length === 0 ? (
+                <div className="empty-state">
+                  Nenhum jogo encontrado na lista de desejos.
+                </div>
+              ) : (
+                <div className="card-grid">
+                  {sortedWishlistGames.map((game) => (
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      selected={selectedGameId === game.id}
+                      onClick={() => handleCardClick(game)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <GameDetailsPanel
+              game={selectedGame}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          </main>
+        </>
+      )}
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={resetForm}>
@@ -644,7 +810,7 @@ export default function App() {
                 className="close-button"
                 onClick={resetForm}
               >
-                
+
               </button>
             </div>
 
