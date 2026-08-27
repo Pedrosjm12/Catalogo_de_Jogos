@@ -1,6 +1,19 @@
 import prisma from "../src/config/prisma.js";
+import { hashPassword } from "../src/utils/password.js";
 
 async function main() {
+  const passwordHash = await hashPassword("Seed123!");
+
+  const user = await prisma.user.upsert({
+    where: { email: "seed@example.com" },
+    update: {},
+    create: {
+      username: "seed_user",
+      email: "seed@example.com",
+      passwordHash,
+    },
+  });
+
   await prisma.game.createMany({
     data: [
       {
@@ -11,6 +24,7 @@ async function main() {
         favorite: true,
         rating: 9.8,
         releaseDate: new Date("2015-05-19"),
+        userId: user.id,
       },
       {
         title: "Red Dead Redemption 2",
@@ -20,6 +34,7 @@ async function main() {
         favorite: true,
         rating: 9.7,
         releaseDate: new Date("2018-10-26"),
+        userId: user.id,
       },
       {
         title: "Baldur's Gate 3",
@@ -27,8 +42,9 @@ async function main() {
         developer: "Larian Studios",
         status: "QUERO_JOGAR",
         favorite: false,
-        rating: 9.9,
+        rating: null,
         releaseDate: new Date("2023-08-03"),
+        userId: user.id,
       },
       {
         title: "Hades",
@@ -38,6 +54,7 @@ async function main() {
         favorite: false,
         rating: 9.4,
         releaseDate: new Date("2020-09-17"),
+        userId: user.id,
       },
     ],
   });

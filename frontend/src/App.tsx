@@ -27,7 +27,35 @@ type Suggestion = {
 
 type Tab = "biblioteca" | "desejos";
 
+type AuthUser = {
+  id: string;
+  username: string;
+  email: string;
+};
+
+type AuthMode = "login" | "register";
+
 const API_URL = "http://localhost:3333/api";
+
+const api = axios.create({ baseURL: API_URL, withCredentials: true });
+
+const extractErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as
+      | { message?: string; errors?: Array<{ message: string }> }
+      | undefined;
+
+    if (data?.errors?.length) {
+      return data.errors.map((issue) => issue.message).join(" ");
+    }
+
+    if (data?.message) {
+      return data.message;
+    }
+  }
+
+  return fallback;
+};
 
 const formatReleaseDate = (releaseDate?: string | null) =>
   releaseDate
@@ -168,7 +196,121 @@ function GameDetailsPanel({
   );
 }
 
+function AuthModal({
+  mode,
+  onModeChange,
+  onSubmit,
+  onClose,
+  error,
+  isSubmitting,
+}: {
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
+  onSubmit: (data: {
+    username: string;
+    email: string;
+    password: string;
+  }) => void;
+  onClose: () => void;
+  error: string | null;
+  isSubmitting: boolean;
+}) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSubmit({ username, email, password });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{mode === "login" ? "Entrar" : "Criar conta"}</h3>
+          <button type="button" className="close-button" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="auth-toggle">
+            <button
+              type="button"
+              className={mode === "login" ? "active" : ""}
+              onClick={() => onModeChange("login")}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              className={mode === "register" ? "active" : ""}
+              onClick={() => onModeChange("register")}
+            >
+              Criar conta
+            </button>
+          </div>
+
+          {mode === "register" && (
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Nome de usuário"
+              required
+              minLength={3}
+              autoComplete="username"
+            />
+          )}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail"
+            required
+            autoComplete="email"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Senha"
+            required
+            minLength={mode === "register" ? 8 : undefined}
+            autoComplete={
+              mode === "login" ? "current-password" : "new-password"
+            }
+          />
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <div className="modal-actions">
+            <button type="button" className="secondary" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting
+                ? "Aguarde..."
+                : mode === "login"
+                  ? "Entrar"
+                  : "Criar conta"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState<Tab>("biblioteca");
   const [games, setGames] = useState<Game[]>([]);
   const [featured, setFeatured] = useState<Game[]>([]);
@@ -220,10 +362,18 @@ export default function App() {
     });
   };
 
+  const resetCatalogState = () => {
+    setGames([]);
+    setFeatured([]);
+    setSelectedGameId(null);
+    setActiveTab("biblioteca");
+    resetForm();
+  };
+
   const loadGames = async () => {
     const [gamesRes, featuredRes] = await Promise.all([
-      axios.get(`${API_URL}/games`),
-      axios.get(`${API_URL}/games/featured`),
+      api.get("/games"),
+      api.get("/games/featured"),
     ]);
 
     setGames(gamesRes.data);
@@ -231,8 +381,25 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadGames();
+    const checkSession = async () => {
+      try {
+        const { data } = await api.get("/auth/me");
+        setUser(data);
+      } catch {
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkSession();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadGames();
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -244,7 +411,7 @@ export default function App() {
       }
 
       try {
-        const { data } = await axios.get(`${API_URL}/games/search`, {
+        const { data } = await api.get("/games/search", {
           params: { q: query },
         });
 
@@ -259,6 +426,51 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [form.title]);
 
+  const handleAuthSubmit = async (data: {
+    username: string;
+    email: string;
+    password: string;
+  }) => {
+    setAuthError(null);
+    setIsAuthSubmitting(true);
+
+    try {
+      const endpoint = authMode === "login" ? "/auth/login" : "/auth/register";
+      const payload =
+        authMode === "login"
+          ? { email: data.email, password: data.password }
+          : data;
+
+      const { data: loggedUser } = await api.post(endpoint, payload);
+      setUser(loggedUser);
+      setIsAuthModalOpen(false);
+    } catch (error) {
+      setAuthError(
+        extractErrorMessage(
+          error,
+          authMode === "login"
+            ? "Não foi possível entrar."
+            : "Não foi possível criar a conta.",
+        ),
+      );
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsProfileMenuOpen(false);
+    await api.post("/auth/logout");
+    setUser(null);
+    resetCatalogState();
+  };
+
+  const openAuthModal = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setAuthError(null);
+    setIsAuthModalOpen(true);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -272,9 +484,9 @@ export default function App() {
     };
 
     if (editingId) {
-      await axios.put(`${API_URL}/games/${editingId}`, payload);
+      await api.put(`/games/${editingId}`, payload);
     } else {
-      await axios.post(`${API_URL}/games`, payload);
+      await api.post("/games", payload);
     }
 
     resetForm();
@@ -308,7 +520,7 @@ export default function App() {
     );
     if (!confirmed) return;
 
-    await axios.delete(`${API_URL}/games/${id}`);
+    await api.delete(`/games/${id}`);
     setSelectedGameId(null);
     if (editingId === id) resetForm();
     loadGames();
@@ -430,35 +642,86 @@ export default function App() {
             QUEST<span>LOG</span>
           </strong>
         </div>
-        <nav className="main-nav">
-          <a
-            href="#biblioteca"
-            className={activeTab === "biblioteca" ? "active" : ""}
-            onClick={(event) => {
-              event.preventDefault();
-              setActiveTab("biblioteca");
-            }}
-          >
-            Biblioteca
-          </a>
-          <a
-            href="#desejos"
-            className={activeTab === "desejos" ? "active" : ""}
-            onClick={(event) => {
-              event.preventDefault();
-              setActiveTab("desejos");
-            }}
-          >
-            Lista de desejos
-          </a>
-        </nav>
-        <div className="profile">
-          <span>Gamer_Pro</span>
-          <span className="avatar">◉</span>
+
+        {user && (
+          <nav className="main-nav">
+            <a
+              href="#biblioteca"
+              className={activeTab === "biblioteca" ? "active" : ""}
+              onClick={(event) => {
+                event.preventDefault();
+                setActiveTab("biblioteca");
+              }}
+            >
+              Biblioteca
+            </a>
+            <a
+              href="#desejos"
+              className={activeTab === "desejos" ? "active" : ""}
+              onClick={(event) => {
+                event.preventDefault();
+                setActiveTab("desejos");
+              }}
+            >
+              Lista de desejos
+            </a>
+          </nav>
+        )}
+
+        <div className="profile-wrap">
+          {user ? (
+            <>
+              <button
+                type="button"
+                className="profile profile-trigger"
+                onClick={() => setIsProfileMenuOpen((open) => !open)}
+              >
+                <span>{user.username}</span>
+                <span className="avatar">◉</span>
+              </button>
+              {isProfileMenuOpen && (
+                <div className="profile-menu">
+                  <div className="profile-menu-user">{user.email}</div>
+                  <button type="button" onClick={handleLogout}>
+                    Sair
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <button
+              type="button"
+              className="profile profile-trigger"
+              onClick={() => openAuthModal("login")}
+              disabled={authLoading}
+            >
+              <span>Entrar</span>
+              <span className="avatar">◉</span>
+            </button>
+          )}
         </div>
       </header>
 
-      {activeTab === "biblioteca" ? (
+      {!user ? (
+        <main className="content">
+          <section className="panel auth-gate">
+            <h2>Bem-vindo ao QuestLog</h2>
+            <p>Entre ou crie uma conta para acessar sua coleção de jogos.</p>
+            <div className="form-actions">
+              <button type="button" onClick={() => openAuthModal("login")}>
+                Entrar
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => openAuthModal("register")}
+              >
+                Criar conta
+              </button>
+            </div>
+          </section>
+        </main>
+      ) : activeTab === "biblioteca" ? (
         <>
           <section className="hero" id="biblioteca">
             <div>
@@ -797,6 +1060,20 @@ export default function App() {
         </>
       )}
 
+      {isAuthModalOpen && (
+        <AuthModal
+          mode={authMode}
+          onModeChange={(mode) => {
+            setAuthMode(mode);
+            setAuthError(null);
+          }}
+          onSubmit={handleAuthSubmit}
+          onClose={() => setIsAuthModalOpen(false)}
+          error={authError}
+          isSubmitting={isAuthSubmitting}
+        />
+      )}
+
       {isModalOpen && (
         <div className="modal-overlay" onClick={resetForm}>
           <div
@@ -810,7 +1087,7 @@ export default function App() {
                 className="close-button"
                 onClick={resetForm}
               >
-
+                ×
               </button>
             </div>
 

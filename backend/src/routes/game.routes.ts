@@ -8,8 +8,11 @@ import {
   getFeaturedGames,
   searchGameSuggestions,
 } from "../controllers/game.controller.js";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
+
+router.use(requireAuth);
 
 router.get("/games", listGames);
 router.get("/games/search", searchGameSuggestions);

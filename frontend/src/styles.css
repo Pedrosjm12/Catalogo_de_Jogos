@@ -1378,3 +1378,103 @@ button[type="submit"] {
     flex-basis: 100%;
   }
 }
+
+.profile-wrap {
+  position: relative;
+}
+
+.profile-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+}
+
+.profile-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  min-width: 200px;
+  background: #10122a;
+  border: 1px solid #232649;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 25;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.profile-menu-user {
+  padding: 8px 10px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #232649;
+  font-size: 13px;
+  color: #94a3b8;
+  overflow-wrap: anywhere;
+}
+
+.profile-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #fca5a5;
+}
+
+.profile-menu button:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.auth-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 260px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.auth-gate p {
+  color: #94a3b8;
+  max-width: 420px;
+}
+
+.auth-toggle {
+  display: flex;
+  gap: 8px;
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+
+.auth-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #232649;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.auth-toggle button.active {
+  background: rgba(5, 228, 237, 0.12);
+  border-color: #05e4ed;
+  color: #05e4ed;
+}
+
+.auth-error {
+  grid-column: 1 / -1;
+  color: #fca5a5;
+  font-size: 14px;
+  margin: 0;
+}

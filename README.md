@@ -41,6 +41,24 @@ npm install
 npm run dev
 ```
 
+## Autenticação
+
+O catálogo é por usuário: cada conta só vê e gerencia os próprios jogos. A sessão é um JWT em cookie `httpOnly` (não fica acessível via JavaScript no navegador).
+
+- `POST /api/auth/register` — `{ username, email, password }`
+- `POST /api/auth/login` — `{ email, password }`
+- `POST /api/auth/logout`
+- `GET /api/auth/me` — retorna o usuário da sessão atual
+
+Todas as rotas em `/api/games*` exigem sessão ativa (cookie enviado automaticamente pelo navegador).
+
+Ao migrar o banco para o modelo com usuários, os jogos que já existiam no `dev.db` foram atribuídos a uma conta padrão:
+
+```
+E-mail: gamer_pro@example.com
+Senha:  GamerPro123!
+```
+
 ## Endpoints principais
 
 - `GET /api/games` (aceita `?page=` e `?pageSize=` opcionais para paginação; sem eles, retorna a lista completa)
@@ -70,3 +88,5 @@ npm run dev
 - O arquivo `backend/.env` é local e não deve ser enviado ao GitHub. Use `backend/.env.example` como modelo.
 - `CORS_ORIGIN` no `.env` define as origens permitidas (separadas por vírgula). Se omitida, o CORS libera qualquer origem — recomendado apenas em desenvolvimento.
 - Validação de entrada (formato, tipos e obrigatoriedade) é feita com `zod` na borda da API; erros de validação retornam `400` com a lista de campos inválidos.
+- Senhas são armazenadas com hash (`bcryptjs`), nunca em texto puro. `JWT_SECRET` no `.env` assina os tokens de sessão — gere uma chave própria (`openssl rand -hex 48`) antes de qualquer uso além do dev local.
+- As rotas de `/api/auth/register` e `/api/auth/login` têm limite de tentativas por IP (10 por minuto) para dificultar força bruta.

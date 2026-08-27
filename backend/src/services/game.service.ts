@@ -31,20 +31,27 @@ export const normalizeReleaseDate = (
   return releaseDate ? new Date(releaseDate) : null;
 };
 
-export const listGames = async ({ page, pageSize }: ListGamesOptions = {}) => {
+export const listGames = async (
+  userId: string,
+  { page, pageSize }: ListGamesOptions = {},
+) => {
   const shouldPaginate = Boolean(page && pageSize);
 
   return prisma.game.findMany({
+    where: { userId },
     orderBy: [{ releaseDate: "desc" }, { createdAt: "desc" }],
     ...(shouldPaginate ? { skip: (page! - 1) * pageSize!, take: pageSize } : {}),
   });
 };
 
-export const getGameById = async (id: string) => {
-  return prisma.game.findUnique({ where: { id } });
+export const getGameById = async (userId: string, id: string) => {
+  return prisma.game.findFirst({ where: { id, userId } });
 };
 
-export const createGame = async (data: CreateGamePayload) => {
+export const createGame = async (
+  userId: string,
+  data: CreateGamePayload,
+) => {
   assertRatingAllowedForStatus(data.status, data.rating);
 
   return prisma.game.create({
@@ -57,12 +64,17 @@ export const createGame = async (data: CreateGamePayload) => {
       rating: data.rating ?? null,
       releaseDate: normalizeReleaseDate(data.releaseDate) ?? null,
       coverUrl: data.coverUrl ?? null,
+      userId,
     },
   });
 };
 
-export const updateGame = async (id: string, data: UpdateGamePayload) => {
-  const existingGame = await prisma.game.findUnique({ where: { id } });
+export const updateGame = async (
+  userId: string,
+  id: string,
+  data: UpdateGamePayload,
+) => {
+  const existingGame = await prisma.game.findFirst({ where: { id, userId } });
 
   if (!existingGame) {
     throw new NotFoundError("Jogo não encontrado.");
@@ -86,8 +98,8 @@ export const updateGame = async (id: string, data: UpdateGamePayload) => {
   });
 };
 
-export const deleteGame = async (id: string) => {
-  const existingGame = await prisma.game.findUnique({ where: { id } });
+export const deleteGame = async (userId: string, id: string) => {
+  const existingGame = await prisma.game.findFirst({ where: { id, userId } });
 
   if (!existingGame) {
     throw new NotFoundError("Jogo não encontrado.");
@@ -96,9 +108,10 @@ export const deleteGame = async (id: string) => {
   return prisma.game.delete({ where: { id } });
 };
 
-export const getFeaturedGames = async () => {
+export const getFeaturedGames = async (userId: string) => {
   return prisma.game.findMany({
     where: {
+      userId,
       OR: [{ favorite: true }, { rating: { not: null } }],
     },
     orderBy: [
