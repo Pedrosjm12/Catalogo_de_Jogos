@@ -90,7 +90,16 @@ Senha:  GamerPro123!
 - Validação de entrada (formato, tipos e obrigatoriedade) é feita com `zod` na borda da API; erros de validação retornam `400` com a lista de campos inválidos.
 - Senhas são armazenadas com hash (`bcryptjs`), nunca em texto puro. `JWT_SECRET` no `.env` assina os tokens de sessão — gere uma chave própria (`openssl rand -hex 48`) antes de qualquer uso além do dev local.
 - As rotas de `/api/auth/register` e `/api/auth/login` têm limite de tentativas por IP (10 por minuto) para dificultar força bruta.
-<img width="1507" height="712" alt="Print4" src="https://github.com/user-attachments/assets/3034fc8e-0c6d-43b9-97f8-71f16d72fcde" />
-<img width="1537" height="765" alt="Print3" src="https://github.com/user-attachments/assets/e069f931-3c16-4412-8dfd-be2f1713b734" />
-<img width="1531" height="892" alt="Print2" src="https://github.com/user-attachments/assets/2858a545-f5e9-467a-a655-4f1dc1dbb204" />
+
+## Imagens 
+
+<img width="1502" height="751" alt="print7" src="https://github.com/user-attachments/assets/a4b8a573-6545-4fad-8678-b0ebf0701e81" />
+<img width="1530" height="635" alt="print6" src="https://github.com/user-attachments/assets/cbf8cb73-3fda-40bc-ab93-056c3a286289" />
+<img width="1550" height="407" alt="Print5" src="https://github.com/user-attachments/assets/ba97aa17-e892-4671-92b9-4d6ad92c9381" />
 <img width="1552" height="890" alt="Print1" src="https://github.com/user-attachments/assets/caaee0d8-b1ce-4958-bd9c-20a19495e9b5" />
+<img width="1531" height="892" alt="Print2" src="https://github.com/user-attachments/assets/2858a545-f5e9-467a-a655-4f1dc1dbb204" />
+<img width="1537" height="765" alt="Print3" src="https://github.com/user-attachments/assets/e069f931-3c16-4412-8dfd-be2f1713b734" />
+<img width="1507" height="712" alt="Print4" src="https://github.com/user-attachments/assets/3034fc8e-0c6d-43b9-97f8-71f16d72fcde" />
+
+
+
