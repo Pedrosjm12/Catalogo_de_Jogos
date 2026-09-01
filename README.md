@@ -89,4 +89,6 @@ Senha:  GamerPro123!
 - `CORS_ORIGIN` no `.env` define as origens permitidas (separadas por vírgula). Se omitida, o CORS libera qualquer origem — recomendado apenas em desenvolvimento.
 - Validação de entrada (formato, tipos e obrigatoriedade) é feita com `zod` na borda da API; erros de validação retornam `400` com a lista de campos inválidos.
 - Senhas são armazenadas com hash (`bcryptjs`), nunca em texto puro. `JWT_SECRET` no `.env` assina os tokens de sessão — gere uma chave própria (`openssl rand -hex 48`) antes de qualquer uso além do dev local.
-- As rotas de `/api/auth/register` e `/api/auth/login` têm limite de tentativas por IP (10 por minuto) para dificultar força bruta.
+- As rotas de `/api/auth/register` e `/api/auth/login` têm limite de tentativas por IP (10 por minuto) para dificultar força bruta.<img width="1527" height="885" alt="Print2" src="https://github.com/user-attachments/assets/3c053c9e-c020-46d0-8b92-a4cc0aabc289" />
+<img width="1607" height="907" alt="Print1" src="https://github.com/user-attachments/assets/d1bbcadd-b05f-4f6e-891d-bce9897017d6" />
+
